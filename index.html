@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <!-- Damit die App auf dem iPad-Homebildschirm wie eine echte App startet -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Reihen">
+  <title>Reihen-Karten</title>
+
+  <!-- ================= AUSSEHEN (CSS) ================= -->
+  <!-- Gleiches Design wie die Einmaleins-App -->
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Trebuchet MS", Arial, sans-serif;
+      background: linear-gradient(#fff3d6, #ffe0f0);
+      min-height: 100vh;
+      color: #333;
+      text-align: center;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      touch-action: manipulation;   /* verhindert Zoomen beim schnellen Tippen */
+    }
+
+    /* Kopfzeile mit Titel und Sammelalbum */
+    .kopf {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      max-width: 820px;
+      margin: 0 auto;
+    }
+    h1 { margin: 0; font-size: 26px; color: #e85d04; }
+
+    /* ---------- Startseite: Karten für die Reihen ---------- */
+    #start { padding: 0 16px 30px; }
+    .frage { font-size: 22px; margin: 4px 0 16px; }
+
+    /* Begrüssung mit Foto */
+    .begruessung { margin: 4px 0 10px; }
+    .foto {
+      display: inline-block;
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      border: 6px solid white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+      background: #ffd166;
+      overflow: hidden;
+      cursor: pointer;
+      animation: reinhuepfen 0.8s ease-out;
+    }
+    .foto img { width: 100%; height: 100%; object-fit: cover; display: none; }
+    .foto span { display: block; padding-top: 30px; font-size: 18px; color: #7a5200; line-height: 1.3; }
+    .begruessung h2 { font-size: 36px; margin: 10px 0 0; color: #e85d04; }
+    .winken { display: inline-block; animation: winken 1.2s ease-in-out 2; transform-origin: 70% 70%; }
+
+    @keyframes reinhuepfen {
+      0%   { transform: scale(0.3); opacity: 0; }
+      70%  { transform: scale(1.1); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+    @keyframes winken {
+      0%, 100% { transform: rotate(0deg); }
+      25%      { transform: rotate(20deg); }
+      75%      { transform: rotate(-10deg); }
+    }
+
+    .raster {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 14px;
+      max-width: 820px;
+      margin: 0 auto;
+    }
+    .karte {
+      border: none;
+      border-radius: 22px;
+      padding: 14px 10px 12px;
+      color: white;
+      box-shadow: 0 5px 0 rgba(0,0,0,0.18);
+    }
+    .karte:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(0,0,0,0.18); }
+    .karte .tier  { font-size: 42px; display: block; }
+    .karte .name  { font-size: 24px; font-weight: bold; display: block; margin: 2px 0 8px; }
+    .karte .stand { font-size: 15px; display: block; margin-top: 6px; }
+    .gemischt { grid-column: 1 / -1; }
+
+    .balken {
+      background: rgba(255,255,255,0.35);
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .balken div { background: white; height: 100%; }
+
+    .zuruecksetzen {
+      margin-top: 30px;
+      background: none;
+      border: none;
+      color: #999;
+      font-size: 14px;
+      text-decoration: underline;
+    }
+
+    /* ---------- Spielseite ---------- */
+    #spiel { display: none; padding: 0 16px 30px; max-width: 620px; margin: 0 auto; }
+
+    .zurueck {
+      background: white;
+      border: none;
+      border-radius: 14px;
+      font-size: 18px;
+      padding: 8px 14px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    }
+
+    #titel { font-size: 34px; font-weight: bold; margin: 0 0 8px; }
+
+    /* Auswahl: Anschauen / Der Reihe nach / Durcheinander / Rückwärts */
+    .arten { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 12px; }
+    .art {
+      border: none; border-radius: 16px; background: white; color: #555; font-size: 16px; font-weight: bold;
+      padding: 8px 12px; box-shadow: 0 3px 0 #ddd;
+    }
+    .art.aktiv { background: #e85d04; color: white; box-shadow: 0 3px 0 #b44700; }
+
+    /* ---------- Das Spielbrett: 10 Karten wie ein Zehnerfeld ---------- */
+    .brett { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 0 auto 14px; }
+    .pk { height: 116px; perspective: 700px; -webkit-perspective: 700px; cursor: pointer; }
+    .pk .innen {
+      position: relative; width: 100%; height: 100%;
+      transition: transform .45s; transform-style: preserve-3d; -webkit-transform-style: preserve-3d;
+    }
+    .pk.offen .innen { transform: rotateY(180deg); }
+    .pk .seite {
+      position: absolute; inset: 0; border-radius: 16px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      backface-visibility: hidden; -webkit-backface-visibility: hidden;
+      box-shadow: 0 5px 0 rgba(0,0,0,.16);
+    }
+    .pk .vorne { color: white; }                                  /* Farbe kommt von der Reihe */
+    .pk .hinten { background: white; transform: rotateY(180deg); border: 4px solid #ffd166; }
+    .pk .zahl { font-size: 38px; font-weight: bold; line-height: 1.1; margin-top: 4px; }
+    .pk .tierchen { font-size: 30px; line-height: 1; margin-top: 6px; }
+
+    /* Die Zahl zeigt, die wievielte Karte es ist (1 bis 10) */
+    .stelle-gross { font-size: 46px; font-weight: bold; line-height: 1; }
+    .stelle-klein { position: absolute; top: 6px; left: 10px; font-size: 16px; font-weight: bold; color: #aaa; }
+    .pk .tierchen { font-size: 22px; margin-top: 6px; }
+
+    .pk.dran .seite { box-shadow: 0 0 0 5px #ffb703, 0 5px 0 rgba(0,0,0,.16); }
+    .pk.dran { animation: huepfen 1.2s ease-in-out infinite; }
+    @keyframes huepfen { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    .pk.gruen  .hinten { border-color: #06d6a0; background: #e3fff5; color: #14866a; }
+    .pk.orange .hinten { border-color: #f4a261; background: #fff3e6; color: #b85c00; }
+    .pk.rot    .hinten { border-color: #e63946; background: #ffe5e7; color: #c1121f; }
+    .pk.wackeln { animation: wackeln .4s; }
+    @keyframes wackeln { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+
+    #anzeige {
+      font-size: 48px;
+      font-weight: bold;
+      background: white;
+      width: 180px;
+      height: 74px;
+      line-height: 66px;
+      margin: 0 auto;
+      border: 4px solid #ffd166;
+      border-radius: 18px;
+    }
+    #anzeige.richtig { border-color: #06d6a0; background: #e3fff5; }
+    #anzeige.falsch  { border-color: #e63946; background: #ffe5e7; }
+
+    #rueckmeldung { font-size: 22px; min-height: 32px; margin: 8px 0 2px; }
+    #bisSticker   { font-size: 15px; color: #777; margin-bottom: 12px; }
+
+    /* Die Zahlentastatur */
+    .tastatur {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      max-width: 330px;
+      margin: 0 auto;
+    }
+    .taste {
+      font-size: 34px;
+      padding: 12px 0;
+      border: none;
+      border-radius: 18px;
+      background: white;
+      box-shadow: 0 5px 0 #ddd;
+      color: #333;
+    }
+    .taste:active { transform: translateY(4px); box-shadow: 0 1px 0 #ddd; }
+    .taste.loeschen { background: #ffd6d6; box-shadow: 0 5px 0 #f0b0b0; }
+    .taste.ok       { background: #06d6a0; color: white; box-shadow: 0 5px 0 #04a57b; }
+    .umklappen {
+      display: block; width: 100%; max-width: 330px; margin: 12px auto 0; border: none; border-radius: 18px;
+      background: #fff1e0; color: #b85c00; font-size: 20px; font-weight: bold; padding: 13px 0; box-shadow: 0 5px 0 #f1cfa6;
+    }
+    .umklappen:active { transform: translateY(4px); box-shadow: 0 1px 0 #f1cfa6; }
+
+    #anschauenHinweis { font-size: 19px; color: #666; margin: 4px 0 6px; line-height: 1.4; }
+
+    /* Ergebnis nach einem Durchgang */
+    #ergebnis { display: none; background: white; border-radius: 22px; padding: 18px 16px 20px;
+                box-shadow: 0 4px 14px rgba(0,0,0,.1); margin: 6px auto; max-width: 460px; }
+    #ergebnis .e-bild  { font-size: 64px; line-height: 1.1; }
+    #ergebnis .e-titel { font-size: 28px; font-weight: bold; color: #e85d04; margin: 4px 0; }
+    #ergebnis .e-text  { font-size: 19px; color: #555; margin-bottom: 16px; line-height: 1.4; }
+    .gross-knopf { font-size: 22px; font-weight: bold; border: none; border-radius: 18px; padding: 13px 26px; margin: 4px;
+                   background: #06d6a0; color: white; box-shadow: 0 5px 0 #04a57b; }
+    .gross-knopf:active { transform: translateY(4px); box-shadow: 0 1px 0 #04a57b; }
+    .gross-knopf.weiss { background: #f1f1f1; color: #555; box-shadow: 0 5px 0 #d6d6d6; }
+
+    /* Fortschritt der Reihe (wie in der Einmaleins-App) */
+    .fortschritt-titel { font-size: 18px; margin: 24px 0 8px; }
+    .fortschritt {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      max-width: 520px; margin: 0 auto;
+    }
+    .feld {
+      border-radius: 10px;
+      padding: 6px 2px;
+      font-size: 15px;
+      color: white;
+      font-weight: bold;
+    }
+    .feld small { display: block; font-weight: normal; font-size: 12px; }
+    .feld.neu    { background: #b5b5b5; }
+    .feld.ueben  { background: #f4a261; }
+    .feld.schwer { background: #e63946; }
+    .feld.kann   { background: #2a9d8f; }
+    .legende { font-size: 13px; color: #666; margin-top: 8px; }
+
+    /* ---------- Sammelalbum (gleich wie in den anderen Apps) ---------- */
+    .album-knopf {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      background: white; border: none; border-radius: 20px; padding: 6px 14px 7px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12); color: #333;
+    }
+    .album-knopf:active { transform: translateY(2px); }
+    .album-knopf.landet { animation: landen .5s ease-out; }
+    @keyframes landen { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
+    .album-zahl { font-size: 22px; font-weight: bold; line-height: 1; }
+    .album-punkte { display: flex; gap: 4px; }
+    .album-punkte i { width: 10px; height: 10px; border-radius: 50%; background: #eee; display: block; transition: background .3s; }
+    .album-punkte i.voll { background: #ffb703; }
+
+    .serie { display: inline-block; font-size: 18px; font-weight: bold; color: #c44900; background: #fff1e0;
+             border-radius: 16px; padding: 4px 14px; margin-top: 8px; }
+    .serie[hidden] { display: none; }
+
+    /* Der neue Sticker poppt auf und fliegt dann ins Album oben rechts */
+    #stickerPlus {
+      position: fixed; top: 42%; left: 50%; z-index: 50; pointer-events: none; display: none;
+      background: white; border-radius: 28px; padding: 18px 30px 16px; min-width: 230px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.22); border: 5px solid #ffd166;
+    }
+    #stickerPlus.gold { border-color: #f5b700; background: linear-gradient(#fffbe6, #fff1b8); }
+    #stickerPlus .s-titel { font-size: 22px; font-weight: bold; color: #e85d04; }
+    #stickerPlus .s-bild { font-size: 110px; line-height: 1.15; }
+    #stickerPlus.gold .s-bild { filter: drop-shadow(0 0 14px #ffd000); }
+    #stickerPlus .s-name { font-size: 26px; font-weight: bold; }
+    #stickerPlus .s-info { font-size: 16px; color: #777; margin-top: 2px; }
+    #stickerPlus.zeigen { display: block; animation: stickerFlug 2.4s ease-in-out forwards; }
+    @keyframes stickerFlug {
+      0%   { transform: translate(-50%, -50%) scale(.2) rotate(-12deg); opacity: 0; }
+      14%  { transform: translate(-50%, -50%) scale(1.12) rotate(4deg); opacity: 1; }
+      22%  { transform: translate(-50%, -50%) scale(1) rotate(0); }
+      72%  { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      100% { transform: translate(calc(-50% + 36vw), calc(-50% - 38vh)) scale(.12); opacity: .2; }
+    }
+
+    /* Album-Ansicht */
+    #album { border: none; border-radius: 22px; padding: 18px; width: 94%; max-width: 640px; max-height: 88vh; text-align: center; }
+    #album::backdrop { background: rgba(0,0,0,.35); }
+    #album h3 { margin: 0 0 4px; color: #e85d04; font-size: 26px; }
+    #album .a-stand { font-size: 17px; color: #666; margin-bottom: 8px; }
+    #album .a-seite { font-size: 18px; font-weight: bold; text-align: left; margin: 14px 0 6px; }
+    #album .a-raster { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+    #album .a-sticker { background: #f6f6f6; border-radius: 14px; padding: 6px 2px; font-size: 13px; color: #555; }
+    #album .a-sticker b { display: block; font-size: 38px; line-height: 1.2; font-weight: normal; }
+    #album .a-sticker.hat { background: #fff6d6; color: #333; }
+    #album .a-sticker.gold { background: linear-gradient(#fff6c2, #ffe27a); box-shadow: 0 0 0 3px #f5b700 inset; }
+    #album .a-sticker.fehlt b { filter: grayscale(1) brightness(1.6); opacity: .25; }
+    #album .a-zu { margin-top: 16px; font-size: 22px; font-weight: bold; border: none; border-radius: 18px; padding: 12px 34px;
+                   background: #06d6a0; color: white; box-shadow: 0 5px 0 #04a57b; font-family: inherit; }
+  </style>
+</head>
+<body>
+
+  <!-- ================= INHALT (HTML) ================= -->
+
+  <div class="kopf">
+    <h1>🃏 Reihen-Karten</h1>
+    <button class="album-knopf" id="albumKnopf" aria-label="Sammelalbum">
+      <span class="album-zahl">📒 <span id="albumZahl">0</span></span>
+      <span class="album-punkte" id="albumPunkte"></span>
+    </button>
+  </div>
+
+  <!-- Startseite -->
+  <div id="start">
+    <div class="begruessung">
+      <!-- Tippt man auf den Kreis, kann man ein Foto auswählen -->
+      <label class="foto">
+        <img id="foto" alt="Foto">
+        <span id="fotoHinweis">📷<br>Foto<br>wählen</span>
+        <input type="file" id="fotoWahl" accept="image/*" style="display:none">
+      </label>
+      <h2>Hallo <span id="name"></span>! <span class="winken">👋</span></h2>
+      <div class="serie" id="serie" hidden></div>
+    </div>
+    <p class="frage">Welche Reihe willst du heute lernen?</p>
+    <div class="raster" id="karten"></div>
+    <button class="zuruecksetzen" id="zuruecksetzen">Fortschritt zurücksetzen</button>
+    <div id="cloudStatus" style="font-size:13px; color:#999; margin-top:8px;"></div>
+  </div>
+
+  <!-- Spielseite -->
+  <div id="spiel">
+    <div style="text-align:left; margin-bottom:6px;">
+      <button class="zurueck" id="zurueck">← Reihen</button>
+    </div>
+
+    <div id="titel"></div>
+    <div class="arten" id="arten"></div>
+
+    <div class="brett" id="brett"></div>
+
+    <div id="anschauenHinweis"></div>
+
+    <div id="eingabeBereich">
+      <div id="anzeige"></div>
+      <div id="rueckmeldung"></div>
+      <div id="bisSticker"></div>
+      <div class="tastatur" id="tastatur"></div>
+      <button class="umklappen" id="umklappen">🃏 Weiss ich nicht – umklappen</button>
+    </div>
+
+    <div id="ergebnis"></div>
+
+    <div class="fortschritt-titel" id="fortschrittTitel"></div>
+    <div class="fortschritt" id="fortschritt"></div>
+    <div class="legende">
+      ⬜ neu &nbsp; 🟥 noch nicht gewusst &nbsp; 🟧 am Lernen &nbsp; 🟩 kann ich
+    </div>
+  </div>
+
+  <div id="stickerPlus"></div>
+  <dialog id="album"></dialog>
+
+
+  <!-- ================= VERHALTEN (JavaScript) ================= -->
+  <script>
+    // ---------- Einstellungen ----------
+    const GEKONNT_AB = 3;          // so oft hintereinander gewusst = "kann ich"
+    const KARTEN_GEMISCHT = 10;    // so viele Karten hat eine Runde "Alle gemischt"
+    const SPEICHER_NAME = "reihen-karten-daten";
+
+    // Gleiche Tiere und Farben wie in der Einmaleins-App
+    const TIERE  = ["🐞", "🐰", "🐸", "🐢", "🦊", "🐼", "🦁", "🐙", "🐳", "🦄"];
+    const FARBEN = ["#e63946", "#f3722c", "#d68c00", "#43aa8b", "#2a9d8f",
+                    "#277da1", "#577590", "#8338ec", "#d63384", "#4d908e"];
+    const LOB = ["🎉 Super!", "⭐ Richtig!", "👏 Toll gemacht!", "💪 Stark!", "🚀 Genau!"];
+
+    const ARTEN = [
+      { id: "schauen", text: "👀 Anschauen" },
+      { id: "vor",     text: "➡️ Der Reihe nach" },
+      { id: "misch",   text: "🔀 Durcheinander" },
+      { id: "rueck",   text: "⬅️ Rückwärts" }
+    ];
+
+    // ---------- Variablen ----------
+    let reihe = null;        // die Reihe, die gerade auf dem Brett liegt
+    let gemischt = false;    // true bei "Alle gemischt"
+    let art = "vor";         // welche Übungsart gerade gewählt ist
+    let liste = [];          // die Karten, die noch drankommen, z. B. [{stelle: 3, reihe: 7}, …]
+    let aktuelle = null;     // die Karte, die gerade dran ist
+    let eingabe = "";        // was gerade eingetippt wurde
+    let gesperrt = false;    // während der Rückmeldung keine Eingabe möglich
+    let durchgang = null;    // zählt, wie viele Karten sofort gewusst wurden
+
+
+    // ================= SPEICHERN & LADEN =================
+    // Alles wird im Browser gespeichert (localStorage) und zusätzlich online (siehe unten).
+
+    let daten = laden();
+
+    function laden() {
+      try {
+        const text = localStorage.getItem(SPEICHER_NAME);
+        if (text) return JSON.parse(text);
+      } catch (fehler) {}
+      return { karten: {} };
+    }
+
+    function speichern() {
+      try {
+        localStorage.setItem(SPEICHER_NAME, JSON.stringify(daten));
+      } catch (fehler) {}
+      cloudSpaeterSenden();
+    }
+
+    // Liefert die gespeicherten Werte einer Karte, z. B. die 3. Karte der 7er-Reihe
+    function info(stelle, r) {
+      const schluessel = stelle + "x" + r;
+      if (!daten.karten[schluessel]) {
+        daten.karten[schluessel] = { gewusst: 0, nicht: 0, serie: 0, zeit: 0 };
+      }
+      return daten.karten[schluessel];
+    }
+
+    // Wie gut kann er diese Karte?
+    function status(a) {
+      if (a.serie >= GEKONNT_AB) return "kann";
+      if (a.gewusst === 0 && a.nicht === 0) return "neu";
+      if (a.serie === 0) return "schwer";   // zuletzt nicht gewusst
+      return "ueben";
+    }
+
+    function gekonntInReihe(r) {
+      let anzahl = 0;
+      for (let s = 1; s <= 10; s++) {
+        if (status(info(s, r)) === "kann") anzahl++;
+      }
+      return anzahl;
+    }
+
+    function mischen(l) {
+      for (let i = l.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = l[i]; l[i] = l[j]; l[j] = t;
+      }
+      return l;
+    }
+
+
+    // ================= STARTSEITE =================
+
+    function zeigeStart() {
+      document.getElementById("spiel").style.display = "none";
+      document.getElementById("start").style.display = "block";
+      aktuelle = null;
+
+      const karten = document.getElementById("karten");
+      karten.innerHTML = "";
+
+      for (let r = 1; r <= 10; r++) {
+        const gekonnt = gekonntInReihe(r);
+        const text = gekonnt === 10 ? "🏆 Geschafft!" : gekonnt + " von 10 ⭐";
+        karten.appendChild(macheKarte(TIERE[r - 1], r + "er-Reihe", FARBEN[r - 1], gekonnt * 10, text, r));
+      }
+
+      // Karte "Alle gemischt"
+      let gesamt = 0;
+      for (let r = 1; r <= 10; r++) gesamt += gekonntInReihe(r);
+      const karte = macheKarte("🎲", "Alle gemischt", "#ff7b00", gesamt, gesamt + " von 100 ⭐", 0);
+      karte.classList.add("gemischt");
+      karten.appendChild(karte);
+
+      albumAnzeigen();
+    }
+
+    function macheKarte(tier, name, farbe, prozent, text, r) {
+      const karte = document.createElement("button");
+      karte.className = "karte";
+      karte.style.background = farbe;
+      karte.innerHTML =
+        '<span class="tier">' + tier + '</span>' +
+        '<span class="name">' + name + '</span>' +
+        '<div class="balken"><div style="width:' + prozent + '%"></div></div>' +
+        '<span class="stand">' + text + '</span>';
+      karte.onclick = function () { if (r === 0) starteGemischt(); else oeffneReihe(r, "schauen"); };
+      return karte;
+    }
+
+
+    // ================= DAS SPIELBRETT =================
+
+    // Die Stelle in der Reihe als Zahl: 1, 2, 3 … 10
+    function stelleHtml(stelle, gross) {
+      return '<div class="' + (gross ? "stelle-gross" : "stelle-klein") + '">' + stelle + '</div>';
+    }
+
+    function baueBrett(r) {
+      const brett = document.getElementById("brett");
+      brett.innerHTML = "";
+      for (let s = 1; s <= 10; s++) {
+        const pk = document.createElement("div");
+        pk.className = "pk";
+        pk.id = "pk" + s;
+        pk.innerHTML =
+          '<div class="innen">' +
+            '<div class="seite vorne" style="background:' + FARBEN[r - 1] + '">' +
+              stelleHtml(s, true) + '<div class="tierchen">' + TIERE[r - 1] + '</div>' +
+            '</div>' +
+            '<div class="seite hinten">' + stelleHtml(s, false) + '<div class="zahl">' + (s * r) + '</div></div>' +
+          '</div>';
+        pk.onclick = function () { karteAngetippt(s); };
+        brett.appendChild(pk);
+      }
+    }
+
+    function pk(s) { return document.getElementById("pk" + s); }
+
+    function karteAngetippt(s) {
+      if (art === "schauen" && !gemischt) { pk(s).classList.toggle("offen"); return; }
+      // Beim Üben: die Karte, die dran ist, kann man umklappen
+      if (gesperrt || !aktuelle || aktuelle.stelle !== s) return;
+      umklappen();
+    }
+
+    function oeffneReihe(r, neueArt) {
+      reihe = r;
+      gemischt = false;
+      art = neueArt;
+      document.getElementById("start").style.display = "none";
+      document.getElementById("spiel").style.display = "block";
+      document.getElementById("ergebnis").style.display = "none";
+      document.getElementById("titel").textContent = TIERE[r - 1] + " " + r + "er-Reihe";
+
+      // Die Knöpfe für die Übungsart
+      const arten = document.getElementById("arten");
+      arten.innerHTML = "";
+      arten.style.display = "flex";
+      for (const a of ARTEN) {
+        const k = document.createElement("button");
+        k.className = "art" + (a.id === art ? " aktiv" : "");
+        k.textContent = a.text;
+        k.onclick = function () { oeffneReihe(reihe, a.id); };
+        arten.appendChild(k);
+      }
+
+      baueBrett(r);
+      fortschrittZeigen(r);
+
+      if (art === "schauen") {
+        // Alle Karten offen – zum Anschauen und Einprägen. Tippen klappt sie zu und wieder auf.
+        aktuelle = null;
+        document.getElementById("eingabeBereich").style.display = "none";
+        document.getElementById("anschauenHinweis").innerHTML =
+          "Schau dir die Reihe gut an und sag sie laut auf! 🗣️<br>Tippe auf eine Karte, um sie zuzuklappen.<br>Bereit? Dann wähle oben, wie du üben willst.";
+        for (let s = 1; s <= 10; s++) pk(s).classList.add("offen");
+      } else {
+        // Üben: alle Karten zu, eine nach der anderen ist dran
+        document.getElementById("anschauenHinweis").textContent = "";
+        document.getElementById("eingabeBereich").style.display = "block";
+        let reihenfolge = [1,2,3,4,5,6,7,8,9,10];
+        if (art === "rueck") reihenfolge.reverse();
+        if (art === "misch") mischen(reihenfolge);
+        liste = reihenfolge.map(function (s) { return { stelle: s, reihe: r, nochmal: false }; });
+        durchgang = { sofort: 0, gesamt: 10 };
+        naechsteKarte();
+      }
+    }
+
+
+    // ================= ÜBEN =================
+
+    function naechsteKarte() {
+      document.querySelectorAll(".pk.dran").forEach(function (k) { k.classList.remove("dran"); });
+      if (!liste.length) { durchgangFertig(); return; }
+      aktuelle = liste.shift();
+      eingabe = "";
+      gesperrt = false;
+
+      // Bei "Alle gemischt" kommt für jede Karte das Brett ihrer Reihe
+      if (gemischt && aktuelle.reihe !== reihe) {
+        reihe = aktuelle.reihe;
+        document.getElementById("titel").textContent = TIERE[reihe - 1] + " " + reihe + "er-Reihe";
+        baueBrett(reihe);
+      }
+
+      const karte = pk(aktuelle.stelle);
+      karte.className = "pk dran";              // zuklappen, falls sie schon offen war
+      document.getElementById("anzeige").className = "";
+      document.getElementById("rueckmeldung").textContent = aktuelle.nochmal ? "🔁 Die nochmals!" : "";
+      anzeigeAktualisieren();
+      fortschrittZeigen(reihe);
+      bisStickerZeigen();
+    }
+
+    function anzeigeAktualisieren() {
+      document.getElementById("anzeige").textContent = eingabe;
+    }
+
+    // Zahl eingetippt und ✓ gedrückt
+    function pruefen() {
+      if (eingabe === "" || !aktuelle) return;
+      gesperrt = true;
+      const a = info(aktuelle.stelle, aktuelle.reihe);
+      a.zeit = Date.now();
+      const loesung = aktuelle.stelle * aktuelle.reihe;
+      const karte = pk(aktuelle.stelle);
+      const anzeige = document.getElementById("anzeige");
+      const rueckmeldung = document.getElementById("rueckmeldung");
+      let wartezeit;
+
+      karte.classList.remove("dran");
+      if (Number(eingabe) === loesung) {
+        a.gewusst++;
+        a.serie++;
+        if (!aktuelle.nochmal) durchgang.sofort++;
+        karte.classList.add("offen", "gruen");
+        anzeige.className = "richtig";
+        rueckmeldung.textContent = LOB[Math.floor(Math.random() * LOB.length)];
+        if (a.serie === GEKONNT_AB && gekonntInReihe(aktuelle.reihe) === 10) {
+          rueckmeldung.textContent = "🏆 Du kannst die " + aktuelle.reihe + "er-Reihe!";
+        }
+        const sticker = albumRichtig();
+        wartezeit = sticker ? 2400 : 800;
+      } else {
+        a.nicht++;
+        a.serie = 0;
+        karte.classList.add("wackeln");
+        setTimeout(function () { karte.classList.remove("wackeln"); karte.classList.add("offen", "rot"); }, 400);
+        anzeige.className = "falsch";
+        rueckmeldung.textContent = "Fast! Hier ist " + loesung + " – merk sie dir! 👀";
+        liste.push({ stelle: aktuelle.stelle, reihe: aktuelle.reihe, nochmal: true });
+        wartezeit = 2600;   // länger zeigen, damit er sich die Zahl einprägen kann
+      }
+
+      speichern();
+      fortschrittZeigen(aktuelle.reihe);
+      bisStickerZeigen();
+      setTimeout(naechsteKarte, wartezeit);
+    }
+
+    // Karte umklappen, wenn er die Zahl nicht weiss
+    function umklappen() {
+      if (gesperrt || !aktuelle) return;
+      gesperrt = true;
+      const a = info(aktuelle.stelle, aktuelle.reihe);
+      a.zeit = Date.now();
+      a.nicht++;
+      a.serie = 0;
+      const karte = pk(aktuelle.stelle);
+      karte.classList.remove("dran");
+      karte.classList.add("offen", "orange");
+      document.getElementById("rueckmeldung").textContent = "Gut anschauen – sie kommt nochmals! 👀";
+      liste.push({ stelle: aktuelle.stelle, reihe: aktuelle.reihe, nochmal: true });
+      speichern();
+      fortschrittZeigen(aktuelle.reihe);
+      setTimeout(naechsteKarte, 2400);
+    }
+
+    document.getElementById("umklappen").onclick = umklappen;
+
+    function durchgangFertig() {
+      aktuelle = null;
+      document.getElementById("eingabeBereich").style.display = "none";
+      const sofort = durchgang.sofort, gesamt = durchgang.gesamt;
+      let bild = "🎉", titel = "Durchgang geschafft!";
+      if (sofort === gesamt) { bild = "🏆"; titel = "Alle sofort gewusst!"; }
+      const erg = document.getElementById("ergebnis");
+      erg.innerHTML =
+        '<div class="e-bild">' + bild + '</div>' +
+        '<div class="e-titel">' + titel + '</div>' +
+        '<div class="e-text">⭐ ' + sofort + ' von ' + gesamt + ' Karten sofort gewusst' +
+        (sofort < gesamt ? '<br>Die anderen hast du nochmals geübt 💪' : '') + '</div>' +
+        '<button class="gross-knopf" id="nochmal">Nochmal ▶</button>' +
+        '<button class="gross-knopf weiss" id="fertig">Fertig</button>';
+      erg.style.display = "block";
+      document.getElementById("nochmal").onclick = function () {
+        if (gemischt) starteGemischt(); else oeffneReihe(reihe, art);
+      };
+      document.getElementById("fertig").onclick = zeigeStart;
+    }
+
+
+    // ---------- Alle gemischt ----------
+    // Karten, die er noch nicht kann, kommen öfter dran (wie in der Einmaleins-App).
+    function gewicht(a) {
+      if (a.serie >= GEKONNT_AB) return 1;
+      if (a.gewusst === 0 && a.nicht === 0) return 5;
+      return 6 + Math.min(a.nicht, 5) * 2 - a.serie * 2;
+    }
+
+    function starteGemischt() {
+      gemischt = true;
+      art = "misch";
+      reihe = null;
+      document.getElementById("start").style.display = "none";
+      document.getElementById("spiel").style.display = "block";
+      document.getElementById("ergebnis").style.display = "none";
+      document.getElementById("arten").style.display = "none";
+      document.getElementById("anschauenHinweis").textContent = "";
+      document.getElementById("eingabeBereich").style.display = "block";
+
+      // Karten ziehen – schwierige haben mehr "Lose", keine doppelt
+      const kandidaten = [];
+      for (let r = 1; r <= 10; r++) for (let s = 1; s <= 10; s++) kandidaten.push({ stelle: s, reihe: r, g: gewicht(info(s, r)) });
+      liste = [];
+      while (liste.length < KARTEN_GEMISCHT && kandidaten.length) {
+        let summe = 0;
+        for (const k of kandidaten) summe += k.g;
+        let los = Math.random() * summe;
+        let i = 0;
+        for (; i < kandidaten.length; i++) { los -= kandidaten[i].g; if (los < 0) break; }
+        i = Math.min(i, kandidaten.length - 1);
+        liste.push({ stelle: kandidaten[i].stelle, reihe: kandidaten[i].reihe, nochmal: false });
+        kandidaten.splice(i, 1);
+      }
+      durchgang = { sofort: 0, gesamt: liste.length };
+      naechsteKarte();
+    }
+
+
+    // ---------- Zahlentastatur ----------
+
+    function baueTastatur() {
+      const tastatur = document.getElementById("tastatur");
+      const tasten = ["1","2","3","4","5","6","7","8","9","⌫","0","✓"];
+      for (const t of tasten) {
+        const knopf = document.createElement("button");
+        knopf.textContent = t;
+        knopf.className = "taste";
+        if (t === "⌫") knopf.classList.add("loeschen");
+        if (t === "✓") knopf.classList.add("ok");
+        knopf.onclick = function () { tasteGedrueckt(t); };
+        tastatur.appendChild(knopf);
+      }
+    }
+
+    function tasteGedrueckt(t) {
+      if (gesperrt || !aktuelle) return;
+      if (t === "⌫") {
+        eingabe = eingabe.slice(0, -1);
+      } else if (t === "✓") {
+        pruefen();
+        return;
+      } else if (eingabe.length < 3) {
+        eingabe += t;
+      }
+      anzeigeAktualisieren();
+    }
+
+    // Auch mit einer echten Tastatur bedienbar (z. B. am Computer)
+    document.addEventListener("keydown", function (e) {
+      if (document.getElementById("spiel").style.display !== "block") return;
+      if (e.key >= "0" && e.key <= "9") tasteGedrueckt(e.key);
+      if (e.key === "Backspace") tasteGedrueckt("⌫");
+      if (e.key === "Enter") tasteGedrueckt("✓");
+    });
+
+
+    // ---------- Anzeigen ----------
+
+    function fortschrittZeigen(r) {
+      document.getElementById("fortschrittTitel").textContent = TIERE[r - 1] + " Deine " + r + "er-Reihe";
+      const feld = document.getElementById("fortschritt");
+      feld.innerHTML = "";
+      for (let s = 1; s <= 10; s++) {
+        const a = info(s, r);
+        const div = document.createElement("div");
+        div.className = "feld " + status(a);
+        div.innerHTML = s + ". Karte<small>✓ " + a.gewusst + "</small>";   // keine Lösung zeigen!
+        feld.appendChild(div);
+      }
+    }
+
+    function bisStickerZeigen() {
+      const noch = STICKER_ALLE - albumLaden().zaehler;
+      document.getElementById("bisSticker").textContent =
+        "Noch " + noch + " richtige bis zum nächsten Sticker 🎁";
+    }
+
+
+    // ================= KNÖPFE =================
+
+    document.getElementById("zurueck").onclick = zeigeStart;
+
+    document.getElementById("zuruecksetzen").onclick = function () {
+      if (confirm("Wirklich den ganzen Fortschritt löschen? (Die Sticker im Album bleiben.)")) {
+        daten = { karten: {} };
+        speichern();
+        zeigeStart();
+      }
+    };
+
+    baueTastatur();
+
+    // ================= BEGRÜSSUNG & FOTO =================
+    // Das Foto wird nur auf diesem Gerät gespeichert – es kommt nicht auf GitHub.
+    // Es ist dasselbe Foto wie in der Einmaleins-App: Wurde dort schon eines
+    // gewählt, erscheint es hier automatisch.
+
+    const NAME = "Rémi";
+    const FOTO_SPEICHER = "einmaleins-foto";
+
+    document.getElementById("name").textContent = NAME;
+
+    function fotoAnzeigen() {
+      let bild = null;
+      try { bild = localStorage.getItem(FOTO_SPEICHER); } catch (fehler) {}
+      if (bild) {
+        const img = document.getElementById("foto");
+        img.src = bild;
+        img.style.display = "block";
+        document.getElementById("fotoHinweis").style.display = "none";
+      }
+    }
+
+    // Wenn ein Foto ausgewählt wurde: verkleinern, speichern, anzeigen
+    document.getElementById("fotoWahl").onchange = function () {
+      const datei = this.files[0];
+      if (!datei) return;
+      const leser = new FileReader();
+      leser.onload = function () {
+        const original = new Image();
+        original.onload = function () {
+          // quadratisch zuschneiden und auf 300 × 300 Pixel verkleinern
+          const groesse = 300;
+          const seite = Math.min(original.width, original.height);
+          const leinwand = document.createElement("canvas");
+          leinwand.width = groesse;
+          leinwand.height = groesse;
+          leinwand.getContext("2d").drawImage(
+            original,
+            (original.width - seite) / 2, (original.height - seite) / 2, seite, seite,
+            0, 0, groesse, groesse
+          );
+          try {
+            localStorage.setItem(FOTO_SPEICHER, leinwand.toDataURL("image/jpeg", 0.85));
+          } catch (fehler) {}
+          fotoAnzeigen();
+        };
+        original.src = leser.result;
+      };
+      leser.readAsDataURL(datei);
+    };
+
+    // ================= SAMMELALBUM =================
+    // Alle 5 richtigen Antworten gibt es einen Sticker fürs Album – wie in der Einmaleins-App.
+    // Diese App hat ihr EIGENES Album.
+    // (Möchtest du lieber das gemeinsame Album der Einmaleins- und Englisch-App,
+    //  ändere die nächste Zeile einfach zu: const ALBUM_SPEICHER = "sammelalbum";)
+    const ALBUM_SPEICHER = "reihen-karten-album";
+    const STICKER_ALLE = 5;          // alle 5 richtigen Antworten ein Sticker
+    const GOLD_CHANCE = 0.1;         // ab und zu ist ein Sticker golden (1 von 10)
+
+    const STICKER_SEITEN = [
+      { titel: "🌲 Im Wald", sticker: [["🦊","Fuchs"],["🦔","Igel"],["🦉","Eule"],["🐿️","Eichhörnchen"],["🦌","Hirsch"],
+                                       ["🐻","Bär"],["🐺","Wolf"],["🦡","Dachs"],["🦫","Biber"],["🍄","Pilz"]] },
+      { titel: "🌊 Im Meer", sticker: [["🐬","Delfin"],["🦈","Hai"],["🐙","Krake"],["🐠","Fisch"],["🐢","Schildkröte"],
+                                       ["🦀","Krebs"],["🐳","Wal"],["🦭","Robbe"],["🐡","Kugelfisch"],["🦑","Tintenfisch"]] },
+      { titel: "🦖 Dinos & Drachen", sticker: [["🦖","T-Rex"],["🦕","Langhals"],["🐉","Drache"],["🐲","Drachenkopf"],["🦎","Echse"],
+                                       ["🐊","Krokodil"],["🥚","Drachenei"],["🌋","Vulkan"],["🦴","Knochen"],["🪨","Fels"]] },
+      { titel: "🌍 Wilde Tiere", sticker: [["🦁","Löwe"],["🐘","Elefant"],["🦒","Giraffe"],["🦓","Zebra"],["🐒","Affe"],
+                                       ["🦜","Papagei"],["🐼","Panda"],["🦘","Känguru"],["🐧","Pinguin"],["🦩","Flamingo"]] },
+      { titel: "🚀 Im Weltall", sticker: [["🚀","Rakete"],["🛸","Ufo"],["🌍","Erde"],["🌙","Mond"],["⭐","Stern"],
+                                       ["☄️","Komet"],["🪐","Saturn"],["👽","Alien"],["🛰️","Satellit"],["🌌","Milchstrasse"]] },
+      { titel: "⚽ Sport", sticker: [["⚽","Fussball"],["🏀","Basketball"],["🎾","Tennis"],["🏒","Eishockey"],["⛷️","Skifahrer"],
+                                       ["🚴","Velo"],["🛹","Skateboard"],["🏆","Pokal"],["🥇","Goldmedaille"],["🎯","Volltreffer"]] },
+      { titel: "🚂 Fahrzeuge", sticker: [["🚂","Lokomotive"],["🚁","Helikopter"],["🏎️","Rennauto"],["🚒","Feuerwehr"],["🚜","Traktor"],
+                                       ["✈️","Flugzeug"],["⛵","Segelboot"],["🚠","Gondel"],["🏍️","Motorrad"],["🚓","Polizei"]] }
+    ];
+    const ALLE_STICKER = [];
+    STICKER_SEITEN.forEach(function (s) { s.sticker.forEach(function (x) { ALLE_STICKER.push({ emoji: x[0], name: x[1] }); }); });
+
+    function albumLaden() {
+      let a = null;
+      try { const t = localStorage.getItem(ALBUM_SPEICHER); if (t) a = JSON.parse(t); } catch (f) {}
+      return Object.assign({ zaehler: 0, sticker: {}, serie: 0, letzterTag: "", umgetauscht: {} }, a || {});
+    }
+    function albumSpeichern(a) {
+      try { localStorage.setItem(ALBUM_SPEICHER, JSON.stringify(a)); } catch (f) {}
+      cloudSpaeterSenden();
+    }
+
+    function tagText(d) { return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
+    function gesternText() { const d = new Date(); d.setDate(d.getDate() - 1); return tagText(d); }
+    function zufall(l) { return l[Math.floor(Math.random() * l.length)]; }
+    function anzahlSticker(a) { return ALLE_STICKER.filter(function (s) { return a.sticker[s.emoji]; }).length; }
+
+    // Einen Sticker ziehen: zuerst nur solche, die noch fehlen.
+    // Ist das Album voll, werden die Sticker nach und nach golden.
+    function stickerZiehen(a) {
+      const fehlen = ALLE_STICKER.filter(function (s) { return !a.sticker[s.emoji]; });
+      const nichtGold = ALLE_STICKER.filter(function (s) { return a.sticker[s.emoji] && !a.sticker[s.emoji].gold; });
+      let s, gold;
+      if (fehlen.length) { s = zufall(fehlen); gold = Math.random() < GOLD_CHANCE; }
+      else if (nichtGold.length) { s = zufall(nichtGold); gold = true; }
+      else { return null; }                       // alles gesammelt und alles golden 🏆
+      a.sticker[s.emoji] = { gold: gold, zeit: Date.now() };
+      return { emoji: s.emoji, name: s.name, gold: gold };
+    }
+
+    // Wird bei jeder gewussten Karte aufgerufen.
+    // Gibt true zurück, wenn es gerade einen Sticker gab (dann etwas länger warten).
+    function albumRichtig() {
+      const a = albumLaden();
+      const heute = tagText(new Date());
+      if (a.letzterTag !== heute) {
+        a.serie = a.letzterTag === gesternText() ? a.serie + 1 : 1;
+        a.letzterTag = heute;
+      }
+      a.zaehler++;
+      let neu = null;
+      if (a.zaehler >= STICKER_ALLE) {
+        a.zaehler = 0;
+        neu = stickerZiehen(a);
+        if (!neu) neu = { emoji: "🏆", name: "Album komplett!", gold: true, fertig: true };
+      }
+      albumSpeichern(a);
+      albumAnzeigen(a);
+      if (neu) stickerFeiern(neu, a);
+      return !!neu;
+    }
+
+    function albumAnzeigen(a) {
+      a = a || albumLaden();
+      document.getElementById("albumZahl").textContent = anzahlSticker(a);
+      let punkte = "";
+      for (let i = 0; i < STICKER_ALLE; i++) punkte += '<i class="' + (i < a.zaehler ? "voll" : "") + '"></i>';
+      document.getElementById("albumPunkte").innerHTML = punkte;
+      // Tages-Serie: nur zeigen, wenn heute oder gestern geübt wurde
+      const serie = (a.letzterTag === tagText(new Date()) || a.letzterTag === gesternText()) ? a.serie : 0;
+      const feld = document.getElementById("serie");
+      feld.hidden = serie < 2;
+      feld.textContent = "🔥 " + serie + " Tage hintereinander geübt!";
+    }
+
+    function stickerFeiern(s, a) {
+      const box = document.getElementById("stickerPlus");
+      box.className = s.gold ? "gold" : "";
+      box.innerHTML =
+        '<div class="s-titel">' + (s.fertig ? "Alles gesammelt!" : s.gold ? "✨ Goldener Sticker! ✨" : "🎁 Neuer Sticker!") + '</div>' +
+        '<div class="s-bild">' + s.emoji + '</div>' +
+        '<div class="s-name">' + s.name + '</div>' +
+        '<div class="s-info">📒 ' + anzahlSticker(a) + ' von ' + ALLE_STICKER.length + '</div>';
+      void box.offsetWidth;                        // kleiner Trick, damit die Animation neu startet
+      box.classList.add("zeigen");
+      const knopf = document.getElementById("albumKnopf");
+      setTimeout(function () {
+        knopf.classList.remove("landet"); void knopf.offsetWidth; knopf.classList.add("landet");
+      }, 2300);
+    }
+
+    function albumOeffnen() {
+      const a = albumLaden();
+      let html = '<h3>📒 Mein Sammelalbum</h3><div class="a-stand">' + anzahlSticker(a) + ' von ' + ALLE_STICKER.length +
+                 ' Stickern · alle ' + STICKER_ALLE + ' richtigen Antworten gibt es einen neuen</div>';
+      for (const seite of STICKER_SEITEN) {
+        html += '<div class="a-seite">' + seite.titel + '</div><div class="a-raster">';
+        for (const x of seite.sticker) {
+          const hat = a.sticker[x[0]];
+          html += '<div class="a-sticker ' + (hat ? (hat.gold ? "hat gold" : "hat") : "fehlt") + '"><b>' + x[0] + '</b>' + (hat ? x[1] : "?") + '</div>';
+        }
+        html += '</div>';
+      }
+      html += '<button class="a-zu" id="albumZu">Fertig</button>';
+      const d = document.getElementById("album");
+      d.innerHTML = html;
+      document.getElementById("albumZu").onclick = function () { d.close(); };
+      d.showModal();
+      d.scrollTop = 0;                             // oben beginnen, nicht beim Fertig-Knopf
+      if (document.activeElement) document.activeElement.blur();
+    }
+
+    document.getElementById("albumKnopf").onclick = albumOeffnen;
+
+
+    // ================= ONLINE-SPEICHER (Firebase) =================
+    // Damit Rémis Stand auf jedem Gerät gleich ist und nie verloren geht, wird er
+    // zusätzlich online gespeichert. Zuerst wird immer der Stand auf dem Gerät
+    // angezeigt, danach holt die App den Online-Stand und führt beide zusammen.
+    // Ohne Internet funktioniert die App ganz normal weiter.
+    // (Das Foto bleibt nur auf dem Gerät – es kommt nicht ins Internet.)
+    const FIREBASE = {
+      projectId: "",      // ← hier kommt die Projekt-ID hin
+      apiKey: ""          // ← hier kommt der Web-API-Schlüssel hin
+    };
+    const CLOUD_DOKUMENT = "lernapps/remi-reihen-karten";
+
+    let cloudTimer = null;
+    let cloudBereit = false;   // erst senden, wenn der Online-Stand einmal geholt wurde
+
+    function cloudAdresse() {
+      return "https://firestore.googleapis.com/v1/projects/" + FIREBASE.projectId +
+             "/databases/(default)/documents/" + CLOUD_DOKUMENT + "?key=" + FIREBASE.apiKey;
+    }
+
+    function cloudStatus(text) {
+      const el = document.getElementById("cloudStatus");
+      if (el) el.textContent = text;
+    }
+
+    // Zwei Stände zusammenführen: pro Karte gilt der zuletzt geübte Stand
+    function zusammenfuehren(lokal, online) {
+      const d = { karten: {} };
+      const kl = lokal.karten || {}, ko = online.karten || {};
+      const alle = {};
+      Object.keys(kl).forEach(function (k) { alle[k] = 1; });
+      Object.keys(ko).forEach(function (k) { alle[k] = 1; });
+      Object.keys(alle).forEach(function (k) {
+        const a = kl[k], b = ko[k];
+        d.karten[k] = !a ? b : !b ? a : ((b.zeit || 0) > (a.zeit || 0) ? b : a);
+      });
+      return d;
+    }
+
+    function albumZusammenfuehren(lokal, online) {
+      const neuer = (online.letzterTag && (online.zeit || 0) > (lokal.zeit || 0)) ? online : lokal;
+      const a = Object.assign({}, neuer, { sticker: {} });
+      [lokal.sticker || {}, online.sticker || {}].forEach(function (l) {
+        for (const e in l) {
+          const alt = a.sticker[e];
+          a.sticker[e] = { gold: !!(l[e].gold || (alt && alt.gold)), zeit: l[e].zeit || 0 };
+        }
+      });
+      return a;
+    }
+
+    async function cloudHolen() {
+      if (!FIREBASE.projectId || !FIREBASE.apiKey) { cloudStatus(""); return; }
+      cloudStatus("☁️ verbinde …");
+      try {
+        const antwort = await fetch(cloudAdresse());
+        if (antwort.status === 404) {
+          cloudBereit = true;               // noch nichts online: einfach den Gerätestand hochladen
+          cloudSenden();
+          return;
+        }
+        if (!antwort.ok) throw new Error(antwort.status);
+        const doc = await antwort.json();
+        const online = JSON.parse(doc.fields.stand.stringValue);
+        daten = zusammenfuehren(daten, online.daten || {});
+        const album = albumZusammenfuehren(albumLaden(), online.album || {});
+        try {
+          localStorage.setItem(SPEICHER_NAME, JSON.stringify(daten));
+          localStorage.setItem(ALBUM_SPEICHER, JSON.stringify(album));
+        } catch (f) {}
+        cloudBereit = true;
+        // Seite mit dem neuen Stand zeichnen (aber nicht mitten im Üben stören)
+        if (document.getElementById("start").style.display !== "none") zeigeStart(); else albumAnzeigen();
+        cloudSenden();
+      } catch (fehler) {
+        cloudStatus("📴 offline – wird später gespeichert");
+      }
+    }
+
+    function cloudSpaeterSenden() {
+      if (!FIREBASE.projectId || !cloudBereit) return;
+      clearTimeout(cloudTimer);
+      cloudTimer = setTimeout(cloudSenden, 1500);   // mehrere Änderungen auf einmal senden
+    }
+
+    async function cloudSenden() {
+      if (!FIREBASE.projectId || !cloudBereit) return;
+      const album = albumLaden();
+      album.zeit = Date.now();
+      try { localStorage.setItem(ALBUM_SPEICHER, JSON.stringify(album)); } catch (f) {}
+      const stand = JSON.stringify({ daten: daten, album: album, geaendert: Date.now() });
+      try {
+        const antwort = await fetch(cloudAdresse(), {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fields: { stand: { stringValue: stand } } })
+        });
+        if (!antwort.ok) throw new Error(antwort.status);
+        cloudStatus("☁️ online gespeichert");
+      } catch (fehler) {
+        cloudStatus("📴 offline – wird später gespeichert");
+      }
+    }
+
+    // Beim Zurückkommen in die App (z. B. vom anderen Gerät aus geübt) neu abgleichen
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) { albumAnzeigen(); cloudHolen(); } });
+    window.addEventListener("online", cloudHolen);
+
+    // Den Browser bitten, die gespeicherten Daten nie automatisch zu löschen
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (f) {}
+
+    fotoAnzeigen();
+    zeigeStart();
+    cloudHolen();
+  </script>
+
+</body>
+</html>
