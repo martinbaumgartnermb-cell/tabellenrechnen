@@ -255,8 +255,8 @@
     .album-knopf.landet { animation: landen .5s ease-out; }
     @keyframes landen { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
     .album-zahl { font-size: 22px; font-weight: bold; line-height: 1; }
-    .album-punkte { display: flex; gap: 4px; }
-    .album-punkte i { width: 10px; height: 10px; border-radius: 50%; background: #eee; display: block; transition: background .3s; }
+    .album-punkte { display: flex; gap: 3px; }
+    .album-punkte i { width: 7px; height: 7px; border-radius: 50%; background: #eee; display: block; transition: background .3s; }
     .album-punkte i.voll { background: #ffb703; }
 
     .serie { display: inline-block; font-size: 18px; font-weight: bold; color: #c44900; background: #fff1e0;
@@ -845,12 +845,12 @@
     };
 
     // ================= SAMMELALBUM =================
-    // Alle 5 richtigen Antworten gibt es einen Sticker fürs Album – wie in der Einmaleins-App.
+    // Alle 15 richtigen Antworten gibt es einen Sticker fürs Album – wie in der Einmaleins-App.
     // Diese App hat ihr EIGENES Album.
     // (Möchtest du lieber das gemeinsame Album der Einmaleins- und Englisch-App,
     //  ändere die nächste Zeile einfach zu: const ALBUM_SPEICHER = "sammelalbum";)
     const ALBUM_SPEICHER = "reihen-karten-album";
-    const STICKER_ALLE = 5;          // alle 5 richtigen Antworten ein Sticker
+    const STICKER_ALLE = 15;         // alle 15 richtigen Antworten ein Sticker
     const GOLD_CHANCE = 0.1;         // ab und zu ist ein Sticker golden (1 von 10)
 
     const STICKER_SEITEN = [
